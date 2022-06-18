@@ -1,3 +1,8 @@
+import 'dart:io';
+
+import 'package:email_validator/email_validator.dart';
+import 'package:flash_chat/components/alert_dialogs.dart';
+import 'package:flash_chat/components/rounded_button.dart';
 import 'package:flash_chat/constants.dart';
 import 'package:flash_chat/screens/chat_screen.dart';
 import 'package:flutter/material.dart';
@@ -15,6 +20,64 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   late String email;
   late String password;
   bool showSpinner = false;
+  bool isButtonEnabled = false;
+  final emailController = TextEditingController();
+  final passwordController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    isEmpty();
+  }
+
+  // TODO: refactor, abstract
+  submit() async {
+    final bool emailIsValid = EmailValidator.validate(email);
+    setState(() {
+      showSpinner = true;
+    });
+    try {
+      if (emailIsValid) {
+        final credential =
+            await FirebaseAuth.instance.createUserWithEmailAndPassword(
+          email: email,
+          password: password,
+        );
+        emailController.clear();
+        passwordController.clear();
+        Navigator.pushNamed(context, ChatScreen.id);
+      }
+      setState(() {
+        showSpinner = false;
+      });
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'weak-password') {
+        var weakPasswordMsg = 'Senha fraca!';
+        Platform.isIOS
+            ? showAlertDialog(context, 'Erro', weakPasswordMsg)
+            : showMyDialog(context, 'Erro', weakPasswordMsg);
+        print(weakPasswordMsg);
+      } else if (e.code == 'email-already-in-use') {
+        var emailAlreadyInUseMsg = 'Já existe uma conta utilizando este email.';
+        Platform.isIOS
+            ? showAlertDialog(context, 'Erro', emailAlreadyInUseMsg)
+            : showMyDialog(context, 'Erro', emailAlreadyInUseMsg);
+        print(emailAlreadyInUseMsg);
+      }
+      setState(() {
+        showSpinner = false;
+      });
+    }
+  }
+
+  bool isEmpty() {
+    setState(() {
+      if (emailController.text == '') {
+        isButtonEnabled = true;
+      }
+    });
+    return isButtonEnabled;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -41,6 +104,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                 height: 48.0,
               ),
               TextField(
+                controller: emailController,
                 keyboardType: TextInputType.emailAddress,
                 textAlign: TextAlign.center,
                 onChanged: (value) {
@@ -54,6 +118,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                 height: 8.0,
               ),
               TextField(
+                controller: passwordController,
                 obscureText: true,
                 textAlign: TextAlign.center,
                 onChanged: (value) {
@@ -66,46 +131,10 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
               const SizedBox(
                 height: 24.0,
               ),
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 16.0),
-                child: Material(
-                  color: Colors.blueAccent,
-                  borderRadius: const BorderRadius.all(Radius.circular(30.0)),
-                  elevation: 5.0,
-                  child: MaterialButton(
-                    onPressed: () async {
-                      setState(() {
-                        showSpinner = true;
-                      });
-                      try {
-                        final credential = await FirebaseAuth.instance
-                            .createUserWithEmailAndPassword(
-                          email: email,
-                          password: password,
-                        );
-                        Navigator.pushNamed(context, ChatScreen.id);
-                        setState(() {
-                          showSpinner = false;
-                        });
-                      } on FirebaseAuthException catch (e) {
-                        if (e.code == 'weak-password') {
-                          print('The password provided is too weak.');
-                        } else if (e.code == 'email-already-in-use') {
-                          print('The account already exists for that email.');
-                        }
-                        setState(() {
-                          showSpinner = false;
-                        });
-                      }
-                    },
-                    minWidth: 200.0,
-                    height: 42.0,
-                    child: const Text(
-                      'Register',
-                      style: TextStyle(color: Colors.white),
-                    ),
-                  ),
-                ),
+              RoundedButton(
+                color: Colors.blueAccent,
+                buttonTitle: 'Register',
+                onPressed: isButtonEnabled ? submit : null,
               ),
             ],
           ),

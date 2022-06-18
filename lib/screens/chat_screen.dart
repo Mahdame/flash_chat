@@ -5,7 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 final _firestore = FirebaseFirestore.instance;
-late User loggedInUser;
+User? loggedInUser;
 
 class ChatScreen extends StatefulWidget {
   static String id = 'chat_screen';
@@ -17,7 +17,6 @@ class ChatScreen extends StatefulWidget {
 class _ChatScreenState extends State<ChatScreen> {
   final _auth = FirebaseAuth.instance;
   final messageTextController = TextEditingController();
-
   String messageText = '';
 
   @override
@@ -32,13 +31,6 @@ class _ChatScreenState extends State<ChatScreen> {
       loggedInUser = user;
     } catch (e) {
       print(e);
-    }
-  }
-
-  void getMessages() async {
-    final messages = await _firestore.collection('messages').get();
-    for (var message in messages.docs) {
-      print(message.data());
     }
   }
 
@@ -82,7 +74,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     onPressed: () {
                       messageTextController.clear();
                       _firestore.collection('messages').add({
-                        'sender': loggedInUser.email,
+                        'sender': loggedInUser!.email,
                         'text': messageText,
                       });
                     },
@@ -102,8 +94,6 @@ class _ChatScreenState extends State<ChatScreen> {
 }
 
 class MessageStream extends StatelessWidget {
-  const MessageStream({Key? key}) : super(key: key);
-
   @override
   Widget build(BuildContext context) {
     return StreamBuilder(
@@ -122,7 +112,7 @@ class MessageStream extends StatelessWidget {
         for (var message in messages) {
           final messageText = message.data()['text'];
           final messageSender = message.data()['sender'];
-          final currentUser = loggedInUser.email;
+          final currentUser = loggedInUser!.email;
           final messageBubble = MessageBubble(
             sender: messageSender,
             text: messageText,
@@ -134,7 +124,7 @@ class MessageStream extends StatelessWidget {
           child: ListView(
             reverse: true,
             children: messageBubbles,
-            padding: EdgeInsets.symmetric(
+            padding: const EdgeInsets.symmetric(
               horizontal: 10.0,
               vertical: 20.0,
             ),
@@ -180,7 +170,7 @@ class MessageBubble extends StatelessWidget {
               padding:
                   const EdgeInsets.symmetric(vertical: 10.0, horizontal: 20.0),
               child: Text(
-                '$text',
+                text,
                 style: TextStyle(
                   color: isMe ? Colors.white : Colors.black,
                   fontSize: 15.0,
